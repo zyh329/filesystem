@@ -1,0 +1,199 @@
+#include "../LibExt2.h"
+#include <stdio.h>
+#include "../winapi.h"
+#include <stdlib.h>
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <sys/time.h>
+#include <iconv.h>
+#include <errno.h>
+
+void (*fFSOpen)(BYTE,LPCTSTR,DWORD,DWORD,ULONGLONG ,DWORD, BOOL);
+char buff_toArray [1024];
+char buff_fromArray [] = \
+"<TESTS_STRINGS>\
+    <T_VERIFICATION_STRINGS/>\
+</TESTS_STRINGS>";
+
+void iconv_test ( const char* desc, size_t* size )
+{
+   printf ("%s = size[%zu]\n",desc, (*size) );
+}
+
+int Testiconv2 ()
+{
+
+ char* toArray = &buff_toArray[0];
+ char* fromArray = &buff_fromArray[0];
+
+ const int inSize_const = 61;
+ short inSize_short = (short) sizeof(buff_fromArray);
+ int inSize_int = (int) sizeof(buff_fromArray);
+ unsigned int inSize_uint = (unsigned int) sizeof(buff_fromArray);
+ long inSize_long = (long) sizeof(buff_fromArray);
+ long long inSize_llong = (long long) sizeof(buff_fromArray);
+ size_t inSize_size_t = sizeof(buff_fromArray);
+
+ printf ("fake iconv usage:\n");
+ iconv_test((const char*) "inSize_const", (size_t*)&inSize_const);
+ iconv_test((const char*) "inSize_short", (size_t*)&inSize_short);
+ iconv_test((const char*) "inSize_int", (size_t*)&inSize_int);
+ iconv_test((const char*) "inSize_uint", (size_t*)&inSize_uint);
+ iconv_test((const char*) "inSize_long", (size_t*)&inSize_long);
+ iconv_test((const char*) "inSize_llong", (size_t*)&inSize_llong);
+ iconv_test((const char*) "inSize_size_t", &inSize_size_t);
+
+ printf ("real iconv usage:\n");
+ int inSize = sizeof(buff_fromArray);
+ int outSize = sizeof(buff_toArray);
+
+ iconv_t c = iconv_open("UTF-8","UNICODE");
+ int status = iconv(c, &fromArray, (size_t*)&inSize, &toArray, (size_t*)&outSize);
+ printf ("status=[%d], errno=[%d] \n", status, errno );
+
+ printf ("result string:\n");
+ for(size_t i = 0; i <= sizeof(buff_toArray); i++) { printf ("%c", buff_toArray[i]); }
+ printf ("\n");
+
+ int close_status =  iconv_close(c);
+ printf ("close status=[%d], errno=[%d] \n", close_status, errno );
+
+ return 0;
+}
+int Testiconv()
+{
+		iconv_t cd = iconv_open("UTF-8","UNICODE");
+		if((iconv_t)-1 == cd)
+		{
+		    printf("Donot support this convert!\n");
+		    return 0;
+		}
+		char* pCh = new char[64];
+		strcpy(pCh , "aaaa");	
+		size_t wclen = 10;	
+		size_t cbMultiByte = 5;
+		char* lpMultiByteStr = new char[64];
+		printf("iconv before %d , %d\n" , wclen , cbMultiByte);
+		int retSize = iconv(cd,&pCh, (size_t*)&wclen, &lpMultiByteStr,(size_t*)&cbMultiByte);
+		printf("iconv %d , %d , %d\n" , retSize , wclen , cbMultiByte);
+
+		if(-1==retSize)
+		{
+		    perror("iconv");
+		    return 0;
+		}
+		iconv_close(cd);	
+}
+main()
+{
+
+char* eInfo = NULL;
+void* hDll = NULL;
+
+printf("tttttttttttt\n");
+hDll = dlopen("/home/iter/Desktop/TestPy/filesystem/bin/libFileSystem.so", RTLD_LAZY);
+if(!hDll)
+{
+	printf("failed!\n");
+	return 0;
+}
+
+dlsym(hDll, "FSOpen");
+eInfo = dlerror();
+if(!eInfo)
+{
+	printf("error is %s\n", eInfo);
+}
+
+
+
+	 char strImg[128]={0};
+	 strcpy(strImg, "/home/iter/Desktop/TestPy/temp.img");
+printf("start\n!");
+	 FSOpen(0x2,strImg,0,0,1024*1024*1024 , 5*1024*1024 , FALSE);
+printf("FSOepn!\n");
+
+
+	 FILE* fp = NULL;
+	 fp=fopen("/home/iter/Desktop/TestPy/108_1.dt", "rb");
+	 if(fp==NULL)
+	 {
+	     printf("fopen 001.rm error!\n");
+	     FSClose(strImg);
+	     return 0;
+	 }
+	 fseek(fp,0,SEEK_END);
+	 DWORD dwLen = ftell(fp);
+	 fseek(fp,0,SEEK_SET);
+	 char* buf = new char[dwLen];
+	 int nRead = fread(buf,1,dwLen,fp);
+printf("nRead = %d\n",nRead);
+	 if(nRead<=0)
+	 {
+		printf("fread 001.rm error!\n");
+		FSClose(strImg);
+		fclose(fp);
+	        return 0;
+	 }
+	 BOOL nB=FatAddEncryptFile(strImg,"\\", (BYTE*)buf,nRead, "abcdisooo.rm");
+printf("the nB is=%d\n",nB);
+         FSClose(strImg);
+
+
+/*
+	 BYTE* pReadBuf = new BYTE[10*1024*1024];
+	 DWORD dwReadRet = 0;
+	 int nRes = FatReadEncryptFile(strImg , "\\" , 0*1024*1024 , pReadBuf , 10*1024*1024, dwReadRet , "abcdisooo.rm");
+printf("FatReadEncryptFile=%d,dwReadRet=%d!\n", nRes,dwReadRet);
+	 
+	 FILE* fp = NULL;
+	 fp= fopen("/home/yangmin/Code/ttt_001.img","w");
+	 if(fp==NULL)
+{
+ 	printf("fp == null!\n");
+	return 0;
+}
+	 int nW = fwrite(pReadBuf,1, dwReadRet, fp);
+ 	 printf("nW=%d", nW);
+	fclose(fp);
+
+	 delete pReadBuf;
+	 pReadBuf = NULL;
+	 FSClose(strImg);
+printf("FSClose!\n");
+
+*/
+
+
+    /*char strImg[128] = {0};
+    strcpy(strImg, "/home/yangmin/Code/fat32.img");
+printf("start\n!");
+    FSOpen(0x02, strImg,0,0,80*1024*1024);
+printf("FSOepn!\n");
+
+
+    FILE* fp=NULL;
+    fp=fopen("/home/yangmin/Code/ttt.cpp","rb");
+    if(fp==NULL)
+    {
+	printf("cant open ttt.cpp!\n");
+    }
+    int len=0;
+    fseek(fp,0,SEEK_END);
+    len = ftell(fp);
+    fseek(fp,0,SEEK_SET);
+    BYTE* buf = new BYTE[len];
+    fread(buf,0,len,fp);
+    fclose(fp);
+printf("file len is %d\n", len);
+
+    Ext2AddFile(strImg,"\\app\\video\\style_1", buf,len, "ttt.cpp");
+printf("Ext2AddFile\n!");
+
+    FSClose(strImg);
+printf("FSClose\n!");*/
+
+    return 0;
+}
